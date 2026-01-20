@@ -7,8 +7,9 @@ public class UIItemDragController : MonoBehaviour
     private IDraggable currentDraggable;
     private float fingerDownTime;
     private bool isDragging = false;
+    private bool isHolding = false;
 
-    private const float dragStartHoldTime = 1f;
+    private const float dragStartHoldTime = .15f;
 
     void OnEnable()
     {
@@ -26,11 +27,15 @@ public class UIItemDragController : MonoBehaviour
 
     private void HandleFingerDown(LeanFinger finger)
     {
-        // Basılı tutma saatini başlat
         fingerDownTime = Time.time;
         isDragging = false;
+        isHolding = true;
 
-        // Parmağın bulunduğu konumdaki UI elemanını al (EventSystem ile)
+        CastForDraggable(finger);
+    }
+
+    private void CastForDraggable(LeanFinger finger)
+    {
         PointerEventData pointerData = new PointerEventData(EventSystem.current)
         {
             position = finger.ScreenPosition
@@ -47,30 +52,37 @@ public class UIItemDragController : MonoBehaviour
 
     private void HandleFingerUp(LeanFinger finger)
     {
-        // Eğer drag sürüyorsa OnEndDrag çağır
         if (isDragging && currentDraggable != null)
         {
             currentDraggable.OnEndDrag();
         }
 
-        // Drag durumunu sıfırla
         isDragging = false;
+        isHolding = false;
         currentDraggable = null;
         fingerDownTime = 0f;
     }
 
     private void HandleFingerUpdate(LeanFinger finger)
     {
-        if (currentDraggable == null)
-            return;
-
-        float holdTime = Time.time - fingerDownTime;
-
-        if (holdTime < dragStartHoldTime)
+        if (!isHolding)
             return;
 
         if (!isDragging)
         {
+            CastForDraggable(finger);
+
+            if (currentDraggable == null)
+            {
+                fingerDownTime = Time.time;
+                return;
+            }
+
+            float holdTime = Time.time - fingerDownTime;
+
+            if (holdTime < dragStartHoldTime)
+                return;
+
             isDragging = true;
             currentDraggable.OnBeginDrag();
         }
