@@ -46,7 +46,7 @@ public class UIItemDragController : MonoBehaviour
 
         if (results.Count > 0)
         {
-            currentDraggable = results[0].gameObject.GetComponent<IDraggable>();
+            currentDraggable = results[0].gameObject.GetComponentInParent<IDraggable>();
         }
     }
 

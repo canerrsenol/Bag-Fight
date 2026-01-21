@@ -6,29 +6,55 @@ using UnityEngine.EventSystems;
 
 public class InventoryItem : MonoBehaviour, IDraggable
 {
-    [SerializeField] private float cooldownTime = 1.0f;
     [SerializeField] private Vector2 itemSize = new Vector2(1, 1);
+    [SerializeField] private float cooldownTime = 1.0f;
+    [SerializeField] private GlobalEventsSO globalEventsSO;
     private float lastUsedTime = -Mathf.Infinity;
+    private bool isUseable = false;
     public Vector2 ItemSize => itemSize;
 
     public List<Tile> VisitedTiles { get; set; } = new List<Tile>();
     public List<Tile> OccupiedTiles { get; set; } = new List<Tile>();
 
-    private Image image;
+    private Image fillImage;
     private RectTransform rectTransform;
 
     private Vector3[] corners;
     private const float tileSize = 100f; // Assuming each tile is 100x100 pixels
+    private float remainingCooldown = 0f;
 
     void Start()
     {
-        image = GetComponent<Image>();
-        rectTransform = transform.parent.GetComponent<RectTransform>();
+        fillImage = transform.GetChild(1).GetComponent<Image>();
+        rectTransform = transform.GetComponent<RectTransform>();
         corners = new Vector3[(int)(itemSize.x * itemSize.y)];
+    }
+
+    void Update()
+    {
+        // Cooldown logic
+        if(isUseable)
+        {
+            remainingCooldown -= Time.deltaTime;
+            
+            if (remainingCooldown <= 0f)
+            {
+                fillImage.fillAmount = 1.0f;
+                globalEventsSO.InventoryEvents.OnItemUsed(fillImage.sprite);
+                remainingCooldown = cooldownTime; // Cooldown'u sıfırla
+            }
+            else
+            {
+                fillImage.fillAmount = 1f - (remainingCooldown / cooldownTime);
+            }
+        }
     }
 
     public void OnBeginDrag()
     {
+        isUseable = false;
+        fillImage.fillAmount = 1f;
+
         transform.DOPunchScale(new Vector3(0.25f, 0.25f, 0), 0.3f, 1, 1);
 
         // Clear occupied tiles
@@ -44,8 +70,7 @@ public class InventoryItem : MonoBehaviour, IDraggable
 
     public void OnDrag(Vector3 position)
     {
-        transform.parent.position = position;
-
+        transform.position = position;
         
         for (int i = 0; i < itemSize.x; i++)
         {
@@ -53,8 +78,8 @@ public class InventoryItem : MonoBehaviour, IDraggable
             {
                 int index = (int)(i * itemSize.y + j);
                 corners[index] = new Vector3(
-                    rectTransform.position.x - (itemSize.x * tileSize) / 2 + (i + 0.5f) * tileSize,
-                    rectTransform.position.y - (itemSize.y * tileSize) / 2 + (j + 0.5f) * tileSize,
+                    rectTransform.position.x - i * tileSize,
+                    rectTransform.position.y - j * tileSize,
                     0);
             }
         }
@@ -131,7 +156,11 @@ public class InventoryItem : MonoBehaviour, IDraggable
 
         if(CanPlaceItem())
         {
-            transform.parent.DOMove(VisitedTiles[0].transform.position, 0.1f);
+            transform.DOMove(VisitedTiles[0].transform.position, 0.1f)
+            .OnComplete(() =>
+            {
+                isUseable = true;
+            });
 
             foreach (Tile tile in VisitedTiles)
             {
