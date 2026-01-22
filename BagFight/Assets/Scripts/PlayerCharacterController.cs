@@ -23,6 +23,6 @@ public class PlayerCharacterController : MonoBehaviour
     private void OnItemUsed(Sprite sprite)
     {
         animator.SetTrigger("Throw");
-        
+        Debug.Log("Item used: " + sprite.name);
     }
 }
